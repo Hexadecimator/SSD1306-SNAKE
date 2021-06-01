@@ -15,6 +15,9 @@ Adafruit_SSD1306 OLED_LCD(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET_PIN);
 
 boolean gameover = false;
 
+boolean foodinit  = false;
+boolean foodeaten = false;
+
 const int SNAKE_ROWS = 30; // snake segments (rows)
 const int SNAKE_COLS = 2;  // x and y for each segment
 const int snake_pos_x_pos = 0;
@@ -23,6 +26,7 @@ const int snake_pos_y_pos = 1;
 int snake_pos[SNAKE_ROWS][SNAKE_COLS];
 int food_pos[] = {0, 0}; // y, x (or row, col) of food
 
+int score = 0;
 
 int h_dir = 1; // will be either 1 or -1 to control left/right
 int v_dir = 0; // will be either 1 or -1 to control up/down
@@ -106,7 +110,6 @@ void moveSnake()
         break;
       }
     }
-
   }
 
   if (!gameover)
@@ -117,14 +120,21 @@ void moveSnake()
       OLED_LCD.drawPixel(snake_pos[i][snake_pos_x_pos], snake_pos[i][snake_pos_y_pos], SSD1306_WHITE);
     }
 
-    OLED_LCD.display();
+    if ( (snake_pos[SNAKE_ROWS-1][snake_pos_x_pos] == food_pos[0]) && 
+         (snake_pos[SNAKE_ROWS-1][snake_pos_y_pos] == food_pos[1]) )
+    {
+      foodeaten = true;
+    }
   } 
   else
   {
     OLED_LCD.setTextSize(2);
     OLED_LCD.setTextColor(SSD1306_WHITE);
-    OLED_LCD.setCursor(10, 10);
+    OLED_LCD.setCursor(0, 0);
     OLED_LCD.println("GAME OVER");
+    OLED_LCD.setTextSize(1);
+    OLED_LCD.setCursor(0, 20);
+    OLED_LCD.print("SCORE: "); OLED_LCD.println(score);
     OLED_LCD.display();
     for(;;);
   } 
@@ -153,6 +163,33 @@ void initSnake()
   }
 }
 
+void checkFood()
+{
+  if (!foodinit)
+  {
+    foodinit = true;
+
+    int rand_x = random(0,127);
+    int rand_y = random(0,31);
+
+    food_pos[0] = rand_x;
+    food_pos[1] = rand_y;
+  }
+
+  if (foodeaten)
+  {
+    foodeaten = false;
+    int rand_x = random(0,127);
+    int rand_y = random(0,31);
+
+    food_pos[0] = rand_x;
+    food_pos[1] = rand_y;
+
+    score += 1;
+  }
+
+  OLED_LCD.drawPixel(food_pos[0], food_pos[1], SSD1306_WHITE); 
+}
 
 void setup() 
 {
@@ -166,6 +203,9 @@ void setup()
 
   initSnake();
   OLED_LCD.display();
+
+  // for food generation
+  randomSeed(analogRead(A3));
 }
 
 
@@ -173,5 +213,7 @@ void loop()
 {
   checkSerial();
   moveSnake();
+  checkFood();
+  OLED_LCD.display();
   delay(150);
 }
