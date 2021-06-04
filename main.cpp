@@ -4,12 +4,14 @@
 #include <Adafruit_SSD1306.h>
 
 // On an arduino MEGA 2560: 20(SDA), 21(SCL)
+// On an arduino Uno: A4(SDA), A5(SCL)
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32
 
 #define OLED_RESET_PIN -1   // -1 if using Arduino reset pin
 #define SCREEN_ADDRESS 0x3C // 128x32: 0x3C || 128x64: 0x3D
+//#define SCREEN_ADDRESS 0x3D
 
 Adafruit_SSD1306 OLED_LCD(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET_PIN);
 
@@ -18,18 +20,21 @@ boolean gameover = false;
 boolean foodinit  = false;
 boolean foodeaten = false;
 
-const int SNAKE_ROWS = 30; // snake segments (rows)
+const int SNAKE_ROWS = 100; // snake segments (rows)
 const int SNAKE_COLS = 2;  // x and y for each segment
 const int snake_pos_x_pos = 0;
 const int snake_pos_y_pos = 1;
 
 int snake_pos[SNAKE_ROWS][SNAKE_COLS];
+int snake_length = 20; // max 100
 int food_pos[] = {0, 0}; // y, x (or row, col) of food
 
 int score = 0;
 
 int h_dir = 1; // will be either 1 or -1 to control left/right
 int v_dir = 0; // will be either 1 or -1 to control up/down
+
+
 
 void checkSerial()
 {
@@ -68,6 +73,7 @@ void checkSerial()
 }
 
 
+
 void moveSnake()
 {
   OLED_LCD.clearDisplay();
@@ -76,30 +82,30 @@ void moveSnake()
   {
     // let all non-head segments inherit the x,y values of the next
     // segment to give the illusion of movement
-    for (int i = 0; i < SNAKE_ROWS-1; ++i)
+    for (int i = 0; i < snake_length-1; ++i)
     {
       snake_pos[i][snake_pos_x_pos] = snake_pos[i+1][snake_pos_x_pos];
       snake_pos[i][snake_pos_y_pos] = snake_pos[i+1][snake_pos_y_pos];
     }
 
     // now move the head
-    snake_pos[SNAKE_ROWS-1][snake_pos_x_pos] += h_dir;
-    snake_pos[SNAKE_ROWS-1][snake_pos_y_pos] += v_dir;
+    snake_pos[snake_length-1][snake_pos_x_pos] += h_dir;
+    snake_pos[snake_length-1][snake_pos_y_pos] += v_dir;
 
     // check if snake head is out of bounds
-    if ( (snake_pos[SNAKE_ROWS-1][snake_pos_x_pos] < 0) || (snake_pos[SNAKE_ROWS-1][snake_pos_x_pos] > SCREEN_WIDTH) || 
-         (snake_pos[SNAKE_ROWS-1][snake_pos_y_pos] < 0) || (snake_pos[SNAKE_ROWS-1][snake_pos_y_pos] > SCREEN_HEIGHT) )
+    if ( (snake_pos[snake_length-1][snake_pos_x_pos] < 0) || (snake_pos[snake_length-1][snake_pos_x_pos] > SCREEN_WIDTH) || 
+         (snake_pos[snake_length-1][snake_pos_y_pos] < 0) || (snake_pos[snake_length-1][snake_pos_y_pos] > SCREEN_HEIGHT) )
     {
       gameover = true;
     }
 
     // check if snake head has hit the body
-    int head_x = snake_pos[SNAKE_ROWS-1][snake_pos_x_pos];
+    int head_x = snake_pos[snake_length-1][snake_pos_x_pos];
     //Serial.print("head_x: "); Serial.println(head_x); // debug
-    int head_y = snake_pos[SNAKE_ROWS-1][snake_pos_y_pos];
+    int head_y = snake_pos[snake_length-1][snake_pos_y_pos];
     //Serial.print("head_y: "); Serial.println(head_y); // debug
 
-    for (int i = 0; i < SNAKE_ROWS-1; ++i)
+    for (int i = 0; i < snake_length-1; ++i)
     {
       if ( snake_pos[i][snake_pos_x_pos] == head_x && 
            snake_pos[i][snake_pos_y_pos] == head_y )
@@ -115,13 +121,13 @@ void moveSnake()
   if (!gameover)
   {
     // draw each segment of the snake
-    for(int i = 0; i < SNAKE_ROWS; ++i)
+    for(int i = 0; i < snake_length; ++i)
     {
       OLED_LCD.drawPixel(snake_pos[i][snake_pos_x_pos], snake_pos[i][snake_pos_y_pos], SSD1306_WHITE);
     }
 
-    if ( (snake_pos[SNAKE_ROWS-1][snake_pos_x_pos] == food_pos[0]) && 
-         (snake_pos[SNAKE_ROWS-1][snake_pos_y_pos] == food_pos[1]) )
+    if ( (snake_pos[snake_length-1][snake_pos_x_pos] == food_pos[0]) && 
+         (snake_pos[snake_length-1][snake_pos_y_pos] == food_pos[1]) )
     {
       foodeaten = true;
     }
@@ -141,12 +147,23 @@ void moveSnake()
 }
 
 
+
 void initSnake()
 {
   for (int i = 0; i < SNAKE_ROWS; ++i)
   {
-    snake_pos[i][snake_pos_x_pos] = 0;
-    snake_pos[i][snake_pos_y_pos] = 0;
+    if (i < snake_length)
+    {
+      snake_pos[i][snake_pos_x_pos] = 0;
+      snake_pos[i][snake_pos_y_pos] = 0;
+    } 
+    else
+    {
+      // parts of snake that are -99 are not 
+      // initialized yet
+      snake_pos[i][snake_pos_x_pos] = -99;
+      snake_pos[i][snake_pos_y_pos] = -99;
+    }
   }
 
   OLED_LCD.clearDisplay();
@@ -157,11 +174,13 @@ void initSnake()
   OLED_LCD.display();
   delay(2000);
 
-  for (int i = 0; i < SNAKE_ROWS; ++i)
+  for (int i = 0; i < snake_length; ++i)
   {
     OLED_LCD.drawPixel( snake_pos[i][snake_pos_x_pos], snake_pos[i][snake_pos_y_pos], SSD1306_WHITE);
   }
 }
+
+
 
 void checkFood()
 {
@@ -169,22 +188,47 @@ void checkFood()
   {
     foodinit = true;
 
-    int rand_x = random(0,127);
-    int rand_y = random(0,31);
-
-    food_pos[0] = rand_x;
-    food_pos[1] = rand_y;
+    food_pos[0] = random(0,127);
+    food_pos[1] = random(0,31);
   }
 
   if (foodeaten)
   {
     foodeaten = false;
-    int rand_x = random(0,127);
-    int rand_y = random(0,31);
 
-    food_pos[0] = rand_x;
-    food_pos[1] = rand_y;
+    food_pos[0] = random(0,127);
+    food_pos[1] = random(0,31);
 
+    // easy way to add a 5 segment long snake part
+    // if the total length <= 94
+    if (snake_length <= 94)
+    {
+      for ( int i = 0; i < 5; ++i )
+      {
+        // head is snake_pos[snake_length-1]
+        snake_pos[snake_length+i][snake_pos_x_pos] = snake_pos[snake_length-1][snake_pos_x_pos];
+        snake_pos[snake_length+i][snake_pos_y_pos] = snake_pos[snake_length-1][snake_pos_y_pos];
+      }
+    }
+
+    // if there are < 5 slots available for a segment, just fill up the rest
+    if ( (snake_length > 94) && (snake_length <= 99) )
+    {
+      for ( int i = 0; i < 99-snake_length; ++i)
+      {
+        snake_pos[snake_length+i][snake_pos_x_pos] = snake_pos[snake_length-1][snake_pos_x_pos];
+        snake_pos[snake_length+i][snake_pos_y_pos] = snake_pos[snake_length-1][snake_pos_y_pos];
+      }
+    }
+
+    snake_length += 5;
+    //max length is 99 for safety
+    if (snake_length > 99) { snake_length = 99; }
+
+    // now move the head
+    snake_pos[snake_length-1][snake_pos_x_pos] += h_dir;
+    snake_pos[snake_length-1][snake_pos_y_pos] += v_dir;
+    
     score += 1;
   }
 
@@ -215,5 +259,5 @@ void loop()
   moveSnake();
   checkFood();
   OLED_LCD.display();
-  delay(150);
+  delay(75);
 }
