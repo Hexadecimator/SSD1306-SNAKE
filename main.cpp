@@ -20,16 +20,18 @@ boolean gameover = false;
 boolean foodinit  = false;
 boolean foodeaten = false;
 
-const int SNAKE_ROWS = 100; // snake segments (rows)
+const int SNAKE_ROWS = 200; // snake segments (rows)
 const int SNAKE_COLS = 2;  // x and y for each segment
 const int snake_pos_x_pos = 0;
 const int snake_pos_y_pos = 1;
 
 int snake_pos[SNAKE_ROWS][SNAKE_COLS];
-int snake_length = 20; // max 100
+int snake_length = 25;
 int food_pos[] = {0, 0}; // y, x (or row, col) of food
 
 int score = 0;
+
+int game_speed = 100;
 
 int h_dir = 1; // will be either 1 or -1 to control left/right
 int v_dir = 0; // will be either 1 or -1 to control up/down
@@ -38,33 +40,46 @@ int v_dir = 0; // will be either 1 or -1 to control up/down
 
 void checkSerial()
 {
+  
   if (Serial.available())
   {
     switch(Serial.read())
     {
     case 'w':
       // up
-      v_dir = -1;
-      h_dir = 0;
-      Serial.println("w");
+      if (v_dir != 1)
+      {
+        v_dir = -1;
+        h_dir = 0;
+        Serial.println("w");
+      }
       break;
     case 'a':
       // left
-      h_dir = -1;
-      v_dir = 0;
-      Serial.println("a");
+      if (h_dir != 1)
+      {
+        h_dir = -1;
+        v_dir = 0;
+        Serial.println("a");
+      }
       break;
     case 'd':
       // right
-      h_dir = 1;
-      v_dir = 0;
-      Serial.println("d");
+      if (h_dir != -1)
+      {
+        h_dir = 1;
+        v_dir = 0;
+        Serial.println("d");
+      }
       break;
     case 's':
       // down
-      v_dir = 1;
-      h_dir = 0;
-      Serial.println("s");
+      if (v_dir != -1)
+      {
+        v_dir = 1;
+        h_dir = 0;
+        Serial.println("s");
+      }
       break;
     default:
       break;
@@ -188,22 +203,22 @@ void checkFood()
   {
     foodinit = true;
 
-    food_pos[0] = random(0,127);
-    food_pos[1] = random(0,31);
+    food_pos[0] = random(1,126);
+    food_pos[1] = random(1,30);
   }
 
   if (foodeaten)
   {
     foodeaten = false;
 
-    food_pos[0] = random(0,127);
-    food_pos[1] = random(0,31);
+    food_pos[0] = random(1,126);
+    food_pos[1] = random(1,30);
 
     // easy way to add a 5 segment long snake part
     // if the total length <= 94
-    if (snake_length <= 94)
+    if (snake_length <= (SNAKE_ROWS-6))
     {
-      for ( int i = 0; i < 5; ++i )
+      for ( int i = 0; i < 10; ++i )
       {
         // head is snake_pos[snake_length-1]
         snake_pos[snake_length+i][snake_pos_x_pos] = snake_pos[snake_length-1][snake_pos_x_pos];
@@ -212,24 +227,29 @@ void checkFood()
     }
 
     // if there are < 5 slots available for a segment, just fill up the rest
-    if ( (snake_length > 94) && (snake_length <= 99) )
+    if ( (snake_length >= (SNAKE_ROWS-5)) && (snake_length <= SNAKE_ROWS) )
     {
-      for ( int i = 0; i < 99-snake_length; ++i)
+      for ( int i = 0; i < (SNAKE_ROWS-1)-snake_length; ++i)
       {
         snake_pos[snake_length+i][snake_pos_x_pos] = snake_pos[snake_length-1][snake_pos_x_pos];
         snake_pos[snake_length+i][snake_pos_y_pos] = snake_pos[snake_length-1][snake_pos_y_pos];
       }
     }
 
-    snake_length += 5;
-    //max length is 99 for safety
-    if (snake_length > 99) { snake_length = 99; }
+    snake_length += 10;
+    //max length is 199 for safety
+    if (snake_length > (SNAKE_ROWS-1)) { snake_length = SNAKE_ROWS-1; }
+
+    game_speed -= 5;
+    // 25ms per main loop is fastest game speed
+    if (game_speed < 25) { game_speed = 25; }
+
 
     // now move the head
     snake_pos[snake_length-1][snake_pos_x_pos] += h_dir;
     snake_pos[snake_length-1][snake_pos_y_pos] += v_dir;
     
-    score += 1;
+    score += 5;
   }
 
   OLED_LCD.drawPixel(food_pos[0], food_pos[1], SSD1306_WHITE); 
@@ -249,7 +269,7 @@ void setup()
   OLED_LCD.display();
 
   // for food generation
-  randomSeed(analogRead(A3));
+  randomSeed(analogRead(A2));
 }
 
 
@@ -259,5 +279,5 @@ void loop()
   moveSnake();
   checkFood();
   OLED_LCD.display();
-  delay(75);
+  delay(game_speed);
 }
